@@ -1,0 +1,18 @@
+{
+  "dataset_params": {
+    "data_folder": ["../dataset"]
+  },
+  "model_params": {
+    "architecture": ["fno"],
+    "n_layers": [1, 2, 4],
+    "n_modes": [8, 16, 32],
+    "n_hidden_channels": [16, 32]
+  },
+  "training_params": {
+    "batch_size": [64],
+    "learning_rate": [1e-4, 5e-4, 1e-3, 5e-3],
+    "weight_decay": [0],
+    "n_epochs": [2000],
+    "patience": [100]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_params": {
+    "data_folder": ["../dataset"]
+  },
+  "model_params": {
+    "architecture": ["deeponet"],
+    "n_layers": [1, 2, 4],
+    "layer_width": [256, 512, 1024, 2048, 4096],
+    "n_modes": [8, 16, 32],
+    "input_dim": [256]
+  },
+  "training_params": {
+    "batch_size": [null],
+    "learning_rate": [1e-5, 5e-5, 1e-4, 5e-4],
+    "weight_decay": [0],
+    "n_epochs": [90000],
+    "patience": [4500]
+  }
+}
