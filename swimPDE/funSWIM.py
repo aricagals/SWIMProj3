@@ -10,7 +10,7 @@ from swimpde.ansatz import BasicAnsatz
 from swimpde.domain import Domain
 
 
-
+# Phisics parameters of the Eikonal Equation
 a_ratio = 8.8131
 Cv = 75.2629
 theta_fiber = 0
@@ -19,6 +19,9 @@ a = np.array([np.cos(theta0), np.sin(theta0)]).T
 b = np.array([np.cos(theta0-np.pi/2), np.sin(theta0-np.pi/2)]).T
 D = ( (1/a_ratio)*np.tensordot( a, a,  axes=0) + np.tensordot( b, b,  axes=0)  )
 
+# Forcing term
+def forcing(v):
+    return -np.ones((v.shape[0],1))
 
 
 # Evaluation data to test the results on.
@@ -31,24 +34,8 @@ y_test = np.linspace(*x_span, num=n_test_sqrt)
 xy_test = np.stack(np.meshgrid(x_test, y_test), axis=-1)
 xy_test = xy_test.reshape(-1, n_dim)
 
-# Domain data
-n_col_sqrt = 4
 
-x_col = np.linspace(*x_span, num=n_col_sqrt)
-y_col = np.linspace(*x_span, num=n_col_sqrt)
-xy_col = np.stack(np.meshgrid(x_col, y_col), axis=-1)
-xy_col = xy_col.reshape(-1, n_dim)
-
-# from pyDOE import lhs
-# Ncl = 16
-# X_coll = lhs(2,Ncl)
-# X_coll = -2.0 + X_coll * 4.0
-# xy_col = X_coll.reshape(-1, n_dim)
-
-n_basis = 800
-u_seed = 99
-
-
+# Ansartz + Lineaar
 def get_model(points, target, n_basis, seed):
     domain = Domain(interior_points=points)
     ansatz = BasicAnsatz(n_basis=n_basis,
@@ -65,9 +52,6 @@ def get_model(points, target, n_basis, seed):
     linear.layer_width = 1
     return ansatz, linear
 
-def forcing(v):
-    return np.ones((v.shape[0],1))
-
 def swim_train (xy_measurement, u_measured):
 
     # Domain data
@@ -78,37 +62,25 @@ def swim_train (xy_measurement, u_measured):
     xy_col = np.stack(np.meshgrid(x_col, y_col), axis=-1)
     xy_col = xy_col.reshape(-1, n_dim)
 
-    # from pyDOE import lhs
-    # Ncl = 16
-    # X_coll = lhs(2,Ncl)
-    # X_coll = -2.0 + X_coll * 4.0
-    # xy_col = X_coll.reshape(-1, n_dim)
-
     n_basis = 800
     u_seed = 99
 
     u_ansatz, u_linear = get_model(xy_measurement, u_measured, n_basis, u_seed)
 
-    n_iters = 1
     forcing_col = forcing(xy_col)
     training_start = time()
-    for _ in range(n_iters):
-        u_phi_measured = u_ansatz.transform(xy_measurement)
-        # u_phi = u_ansatz.transform(xy_col)
-        # u_approx = u_linear.transform(u_phi)
-        u_phi_x = u_ansatz.transform(xy_col, operator="gradient")
+    
+    u_phi_measured = u_ansatz.transform(xy_measurement)
+    u_phi_x = u_ansatz.transform(xy_col, operator="gradient")
 
-
-        # Least squares for computing u_approx: use updated value of gamma
-        # and also stack the true values we know at the measurement points
-        matrix_in_u = Cv * np.sqrt(np.einsum("nkd,df,nkf->nk", u_phi_x, D, u_phi_x))
+    # Least squares for computing u_approx: use updated value of gamma
+    # and also stack the true values we know at the measurement points
+    matrix_in_u = Cv * np.sqrt(np.einsum("nkd,df,nkf->nk", u_phi_x, D, u_phi_x))
         
-        matrix_in_u = np.row_stack([matrix_in_u, u_phi_measured])
-        matrix_out_u = np.concatenate([forcing_col, u_measured])
+    matrix_in_u = np.row_stack([matrix_in_u, u_phi_measured])
+    matrix_out_u = np.concatenate([forcing_col, u_measured])
 
-        u_outer_weights = np.linalg.lstsq(
-            matrix_in_u, matrix_out_u, rcond=1e-12
-        )[0]
+    u_outer_weights = np.linalg.lstsq(matrix_in_u, matrix_out_u, rcond=1e-12)[0]
 
     u_linear.weights = u_outer_weights
 
